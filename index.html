@@ -1,0 +1,297 @@
+<!doctype html>
+<html class="no-js" lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Note de Frais - CSE Younup</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="Application de gestion de notes de frais pour les élus du CSE Younup">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#fbbe00">
+</head>
+
+<body>
+  <div class="container">
+    <header class="app-header">
+      <img src="img/logo.png" alt="Logo CSE Younup" class="logo">
+      <h1>📋 Note de Frais</h1>
+      <p class="subtitle">Générateur de demande de remboursement</p>
+      <p class="cse-info">CSE Younup - 7 mail Pablo Picasso, 44000 Nantes</p>
+    </header>
+
+    <main>
+      <!-- Indicateur de demande en cours d'édition -->
+      <div id="editingIndicator" class="editing-indicator hidden">
+        <span>📝 Modification de la demande du <strong id="editingDate"></strong></span>
+        <button type="button" id="btnCancelEdit" class="btn btn-secondary btn-sm">Nouvelle demande</button>
+      </div>
+
+      <!-- Section Informations personnelles -->
+      <section class="card" id="section-personal">
+        <h2>👤 Informations de l'élu</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="nom">Nom *</label>
+            <input type="text" id="nom" name="nom" required>
+          </div>
+          <div class="form-group">
+            <label for="prenom">Prénom *</label>
+            <input type="text" id="prenom" name="prenom" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="adresse">Adresse *</label>
+            <input type="text" id="adresse" name="adresse" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" required>
+          </div>
+          <div class="form-group">
+            <label for="telephone">Téléphone *</label>
+            <input type="tel" id="telephone" name="telephone" required>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Informations de la demande -->
+      <section class="card" id="section-request">
+        <h2>📅 Informations de la demande</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="dateDemande">Date de la demande *</label>
+            <input type="date" id="dateDemande" name="dateDemande" required>
+          </div>
+          <div class="form-group">
+            <label for="totalTTC">Total à rembourser par le CSE</label>
+            <input type="text" id="totalTTC" name="totalTTC" readonly class="total-display">
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Liste des frais -->
+      <section class="card" id="section-expenses">
+        <h2>💰 Liste des frais</h2>
+
+        <div class="expense-type-selector">
+          <label for="expenseType">Type de frais à ajouter :</label>
+          <select id="expenseType">
+            <option value="">-- Sélectionner --</option>
+            <option value="hotel">🏨 Hôtel</option>
+            <option value="parking">🅿️ Parking</option>
+            <option value="repas">🍽️ Repas</option>
+            <option value="transport">🚆 Transport</option>
+            <option value="divers">📦 Divers</option>
+            <option value="fraisKm">🚗 Frais kilométriques</option>
+          </select>
+          <button type="button" id="btnAddExpense" class="btn btn-primary">+ Ajouter un frais</button>
+        </div>
+
+        <div id="expensesList" class="expenses-list">
+          <!-- Les frais seront ajoutés ici dynamiquement -->
+        </div>
+
+        <div class="expenses-summary">
+          <div class="summary-row">
+            <span>Total HT :</span>
+            <span id="summaryHT">0,00 €</span>
+          </div>
+          <div class="summary-row">
+            <span>Total TVA :</span>
+            <span id="summaryTVA">0,00 €</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total TTC à rembourser par le CSE :</span>
+            <span id="summaryTTC">0,00 €</span>
+          </div>
+          <p class="note">* Les paiements par carte CSE ne sont pas comptabilisés dans le total</p>
+        </div>
+
+        <!-- Messages de rappel pour les justificatifs -->
+        <div id="justificatifsReminder" class="justificatifs-reminder hidden">
+          <div id="reminderCarteGrise" class="reminder-item reminder-km hidden">
+            <span class="reminder-icon">🚗</span>
+            <span>La <strong>carte grise</strong> du véhicule doit être jointe à la demande.</span>
+          </div>
+          <div id="reminderFactures" class="reminder-item reminder-facture hidden">
+            <span class="reminder-icon">📄</span>
+            <span>Les <strong>factures et justificatifs</strong> doivent être joints à la demande.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Boutons d'action -->
+      <section class="actions">
+        <button type="button" id="btnSaveDraft" class="btn btn-primary">💾 Sauvegarder</button>
+        <button type="button" id="btnViewSaved" class="btn btn-secondary">📂 Mes demandes</button>
+        <button type="button" id="btnReset" class="btn btn-secondary">🗑️ Réinitialiser</button>
+        <button type="button" id="btnGeneratePDF" class="btn btn-success">📄 Générer le PDF</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>CSE Younup - Application de Note de Frais</p>
+    </footer>
+  </div>
+
+  <!-- Modal pour la liste des demandes sauvegardées -->
+  <div id="modalSavedRequests" class="modal">
+    <div class="modal-content modal-large">
+      <span class="close-modal">&times;</span>
+      <h3>📂 Mes demandes sauvegardées</h3>
+      <div id="savedRequestsList" class="saved-requests-list">
+        <!-- Les demandes sauvegardées seront affichées ici -->
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btnCloseSaved">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal pour les frais standards -->
+  <div id="modalExpense" class="modal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <h3 id="modalTitle">Ajouter un frais</h3>
+      <form id="formExpense">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="expMontantHT">Montant HT (€) *</label>
+            <input type="number" id="expMontantHT" step="0.01" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="expTauxTVA">Taux de TVA *</label>
+            <select id="expTauxTVA" required>
+              <option value="20" selected>20%</option>
+              <option value="10">10%</option>
+              <option value="5.5">5.5%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="expTVA">TVA (€)</label>
+            <input type="number" id="expTVA" step="0.01" readonly>
+          </div>
+          <div class="form-group">
+            <label for="expMontantTTC">Montant TTC (€)</label>
+            <input type="number" id="expMontantTTC" step="0.01" readonly>
+          </div>
+          <div class="form-group">
+            <label for="expDate">Date du frais *</label>
+            <input type="date" id="expDate" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="expRaison">Raison du frais *</label>
+            <input type="text" id="expRaison" required placeholder="Ex: Déjeuner client, Nuit d'hôtel mission Paris...">
+          </div>
+          <div class="form-group" id="groupRepasInfo" style="display:none;">
+            <p class="info-repas">⚠️ Les repas sont remboursés à hauteur de 25€ maximum. Tout montant supérieur reste à la charge de l'élu.</p>
+          </div>
+          <div class="form-group">
+            <label for="expReference">Référence du justificatif *</label>
+            <input type="text" id="expReference" required placeholder="N° de facture, ticket...">
+          </div>
+          <div class="form-group">
+            <label for="expFournisseur">Identité du fournisseur *</label>
+            <input type="text" id="expFournisseur" required placeholder="Hôtel, transporteur...">
+          </div>
+          <div class="form-group">
+            <label for="expPaiement">Moyen de paiement *</label>
+            <select id="expPaiement" required>
+              <option value="">-- Sélectionner --</option>
+              <option value="carte_perso">Carte personnelle</option>
+              <option value="carte_cse">Carte CSE (non remboursable)</option>
+              <option value="espece">Espèces</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+        </div>
+        <input type="hidden" id="expEditId" value="">
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelExpense">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitExpense">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal pour les frais kilométriques -->
+  <div id="modalFraisKm" class="modal">
+    <div class="modal-content modal-large">
+      <span class="close-modal">&times;</span>
+      <h3 id="modalKmTitle">🚗 Ajouter des frais kilométriques</h3>
+      <div class="info-km">
+        <p>ℹ️ Le montant de l'indemnité kilométrique est calculé selon le barème de l'administration fiscale et est fixé en fonction du nombre de kilomètres parcourus et de la puissance fiscale de votre véhicule.</p>
+      </div>
+      <form id="formFraisKm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="kmDate">Date *</label>
+            <input type="date" id="kmDate" required>
+          </div>
+          <div class="form-group">
+            <label for="kmRaison">Raison du déplacement *</label>
+            <input type="text" id="kmRaison" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="kmDepart">Adresse de départ *</label>
+            <input type="text" id="kmDepart" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="kmArrivee">Adresse d'arrivée *</label>
+            <input type="text" id="kmArrivee" required>
+          </div>
+          <div class="form-group">
+            <label for="kmDistance">Distance (km) *</label>
+            <input type="number" id="kmDistance" step="0.1" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="kmAllerRetour">Aller/Retour ?</label>
+            <select id="kmAllerRetour" required>
+              <option value="aller">Aller simple</option>
+              <option value="aller-retour">Aller-retour</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="kmImmatriculation">Immatriculation *</label>
+            <input type="text" id="kmImmatriculation" required placeholder="AB-123-CD">
+          </div>
+          <div class="form-group">
+            <label for="kmPuissance">Puissance fiscale (CV) *</label>
+            <select id="kmPuissance" required>
+              <option value="">-- Sélectionner --</option>
+              <option value="3">3 CV et moins</option>
+              <option value="4">4 CV</option>
+              <option value="5">5 CV</option>
+              <option value="6">6 CV</option>
+              <option value="7">7 CV et plus</option>
+            </select>
+          </div>
+        </div>
+        <div class="km-calculation">
+          <h4>📊 Calcul du remboursement</h4>
+          <div class="calc-details">
+            <p>Distance totale : <span id="kmTotalDistance">0</span> km</p>
+            <p>Montant à rembourser : <strong><span id="kmMontant">0,00</span> €</strong></p>
+          </div>
+        </div>
+        <input type="hidden" id="kmEditId" value="">
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelKm">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitKm">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>

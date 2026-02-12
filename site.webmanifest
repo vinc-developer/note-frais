@@ -1,0 +1,19 @@
+{
+  "short_name": "Note Frais",
+  "name": "Note de Frais - CSE Younup",
+  "icons": [{
+    "src": "icon.png",
+    "type": "image/png",
+    "sizes": "192x192"
+  },
+  {
+    "src": "img/logo.png",
+    "type": "image/png",
+    "sizes": "512x512"
+  }],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#fbbe00",
+  "orientation": "portrait"
+}
