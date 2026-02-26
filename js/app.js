@@ -74,8 +74,11 @@ const BAREME_KM = {
 const EXPENSE_TYPES = {
   hotel: { label: 'Hôtel', icon: '🏨' },
   parking: { label: 'Parking', icon: '🅿️' },
-  repas: { label: 'Repas', icon: '🍽️' },
+  repas: { label: 'Repas (midi)', icon: '🍽️' },
+  repasSoir: { label: 'Repas du soir', icon: '🌙' },
   transport: { label: 'Transport', icon: '🚆' },
+  evenement: { label: 'Événement', icon: '🎉' },
+  fonctionnement: { label: 'Fonctionnement CSE', icon: '🏢' },
   divers: { label: 'Divers', icon: '📦' },
   fraisKm: { label: 'Frais kilométriques', icon: '🚗' }
 };
@@ -103,6 +106,12 @@ const DOM = {
   summaryHT: document.getElementById('summaryHT'),
   summaryTVA: document.getElementById('summaryTVA'),
   summaryTTC: document.getElementById('summaryTTC'),
+  summaryTTCRow: document.getElementById('summaryTTCRow'),
+  summaryTTCLabel: document.getElementById('summaryTTCLabel'),
+  summaryDueToCSE: document.getElementById('summaryDueToCSE'),
+  summaryDueAmount: document.getElementById('summaryDueAmount'),
+  summaryNetRow: document.getElementById('summaryNetRow'),
+  summaryNetAmount: document.getElementById('summaryNetAmount'),
 
   // Rappels justificatifs
   justificatifsReminder: document.getElementById('justificatifsReminder'),
@@ -136,6 +145,7 @@ const DOM = {
   expDate: document.getElementById('expDate'),
   expRaison: document.getElementById('expRaison'),
   groupRepasInfo: document.getElementById('groupRepasInfo'),
+  repasInfoText: document.getElementById('repasInfoText'),
   expReference: document.getElementById('expReference'),
   expFournisseur: document.getElementById('expFournisseur'),
   expPaiement: document.getElementById('expPaiement'),
@@ -271,8 +281,12 @@ function openExpenseModal(type, editId = null) {
   DOM.expTauxTVA.value = '20'; // Taux par défaut
 
   // Afficher/masquer le message pour les repas
-  if (type === 'repas') {
+  if (type === 'repasSoir') {
     DOM.groupRepasInfo.style.display = 'block';
+    DOM.repasInfoText.textContent = '⚠️ Les repas du soir lors de déplacements sont remboursés à hauteur de 25€ TTC maximum. Tout dépassement reste à la charge de l\'élu. Si le repas a été payé par carte CSE et dépasse 25€, la différence sera déduite de votre remboursement.';
+  } else if (type === 'repas') {
+    DOM.groupRepasInfo.style.display = 'block';
+    DOM.repasInfoText.textContent = 'ℹ️ Les repas du midi sont pris en charge à 100% par le CSE, sans plafond.';
   } else {
     DOM.groupRepasInfo.style.display = 'none';
   }
@@ -355,11 +369,20 @@ function handleSubmitExpense(e) {
   let montantTTC = parseFloat(DOM.expMontantTTC.value) || 0;
   let montantRembourse = montantTTC;
   let plafonne = false;
+  let montantDuAuCSE = 0;
+  const paiement = DOM.expPaiement.value;
 
-  // Plafonnement des repas à 25€ TTC
-  if (type === 'repas' && montantTTC > 25) {
-    montantRembourse = 25;
+  // Plafonnement des repas du soir à 25€ TTC (les repas midi sont pris à 100% par le CSE)
+  if (type === 'repasSoir' && montantTTC > 25) {
     plafonne = true;
+    if (paiement === 'carte_cse') {
+      // Payé par carte CSE et dépassement : l'élu doit rembourser le surplus au CSE
+      montantRembourse = 0; // Pas de remboursement vers l'élu
+      montantDuAuCSE = Math.round((montantTTC - 25) * 100) / 100;
+    } else {
+      // Payé par l'élu : remboursement plafonné à 25€
+      montantRembourse = 25;
+    }
   }
 
   const expense = {
@@ -373,11 +396,12 @@ function handleSubmitExpense(e) {
     montantTTC: montantTTC,
     montantRembourse: montantRembourse,
     plafonne: plafonne,
+    montantDuAuCSE: montantDuAuCSE,
     date: DOM.expDate.value,
     raison: DOM.expRaison.value,
     reference: DOM.expReference.value,
     fournisseur: DOM.expFournisseur.value,
-    paiement: DOM.expPaiement.value,
+    paiement: paiement,
     isKm: false
   };
 
@@ -391,8 +415,10 @@ function handleSubmitExpense(e) {
   } else {
     // Mode ajout
     state.expenses.push(expense);
-    if (plafonne) {
-      showToast(`Frais ajouté - Repas plafonné à 25€ (${formatCurrency(montantTTC - 25)}€ non remboursés)`, 'success');
+    if (plafonne && paiement === 'carte_cse') {
+      showToast(`Frais ajouté - Repas du soir payé par carte CSE dépassant 25€ : ${formatCurrency(montantDuAuCSE)}€ déduits du remboursement`, 'warning');
+    } else if (plafonne) {
+      showToast(`Frais ajouté - Repas du soir plafonné à 25€ (${formatCurrency(montantTTC - 25)}€ non remboursés)`, 'success');
     } else {
       showToast('Frais ajouté avec succès', 'success');
     }
@@ -594,7 +620,9 @@ function renderExpensesList() {
           <div class="ttc">${formatCurrency(montantAffiche)} €</div>
           ${!expense.isKm ? `<div class="ht-tva">HT: ${formatCurrency(expense.montantHT)} € | TVA: ${formatCurrency(expense.tva)} €</div>` : ''}
           ${expense.plafonne ? `<div class="ht-tva" style="color: #f59e0b;">Plafonné (TTC réel: ${formatCurrency(expense.montantTTC)}€)</div>` : ''}
-          ${isCse ? '<div class="ht-tva" style="color: #f59e0b;">Non comptabilisé</div>' : ''}
+          ${expense.montantDuAuCSE > 0 ? `<div class="ht-tva" style="color: #ef4444; font-weight: bold;">⚠️ ${formatCurrency(expense.montantDuAuCSE)}€ déduits (dépassement repas du soir)</div>` : ''}
+          ${isCse && !expense.montantDuAuCSE ? '<div class="ht-tva" style="color: #f59e0b;">Non comptabilisé</div>' : ''}
+          ${isCse && expense.montantDuAuCSE > 0 ? '<div class="ht-tva" style="color: #f59e0b;">Payé par carte CSE (dépassement plafond repas du soir)</div>' : ''}
         </div>
         <div class="expense-actions">
           <button type="button" onclick="editExpense(${expense.id})" title="Modifier">✏️</button>
@@ -609,6 +637,7 @@ function getPaiementLabel(paiement) {
   switch (paiement) {
     case 'carte_perso': return 'Carte perso';
     case 'carte_cse': return 'Carte CSE';
+    case 'virement': return 'Virement';
     case 'espece': return 'Espèces';
     case 'autre': return 'Autre';
     default: return paiement;
@@ -619,6 +648,7 @@ function getBadgeClass(paiement) {
   switch (paiement) {
     case 'carte_perso': return 'badge-perso';
     case 'carte_cse': return 'badge-cse';
+    case 'virement': return 'badge-virement';
     case 'espece': return 'badge-espece';
     case 'autre': return 'badge-autre';
     default: return '';
@@ -633,8 +663,14 @@ function updateSummary() {
   let totalHT = 0;
   let totalTVA = 0;
   let totalTTC = 0;
+  let totalDuAuCSE = 0;
 
   state.expenses.forEach(expense => {
+    // Cumuler les montants dus au CSE (repas carte CSE dépassant 25€)
+    if (expense.montantDuAuCSE > 0) {
+      totalDuAuCSE += expense.montantDuAuCSE;
+    }
+
     // Ne pas comptabiliser les paiements par carte CSE
     if (expense.paiement !== 'carte_cse') {
       // Utiliser le montant remboursé (plafonné) si disponible
@@ -658,7 +694,46 @@ function updateSummary() {
   DOM.summaryHT.textContent = formatCurrency(totalHT) + ' €';
   DOM.summaryTVA.textContent = formatCurrency(totalTVA) + ' €';
   DOM.summaryTTC.textContent = formatCurrency(totalTTC) + ' €';
-  DOM.totalTTC.value = formatCurrency(totalTTC) + ' €';
+
+  // Cas où il y a à la fois un remboursement et un montant dû au CSE → afficher le net
+  if (totalDuAuCSE > 0 && totalTTC > 0) {
+    const montantNet = Math.round((totalTTC - totalDuAuCSE) * 100) / 100;
+
+    // Changer le libellé du total TTC brut
+    DOM.summaryTTCLabel.textContent = 'Sous-total TTC des frais à rembourser :';
+
+    // Afficher la ligne déduction
+    DOM.summaryDueToCSE.classList.remove('hidden');
+    DOM.summaryDueAmount.textContent = '- ' + formatCurrency(totalDuAuCSE) + ' €';
+
+    // Afficher la ligne net
+    DOM.summaryNetRow.classList.remove('hidden');
+    if (montantNet >= 0) {
+      DOM.summaryNetAmount.textContent = formatCurrency(montantNet) + ' €';
+      DOM.summaryNetRow.className = 'summary-row net-total net-positive';
+    } else {
+      DOM.summaryNetAmount.textContent = '- ' + formatCurrency(Math.abs(montantNet)) + ' € (à rembourser au CSE)';
+      DOM.summaryNetRow.className = 'summary-row net-total net-negative';
+    }
+
+    DOM.totalTTC.value = formatCurrency(montantNet) + ' € (net)';
+  } else if (totalDuAuCSE > 0 && totalTTC === 0) {
+    // Seulement un montant dû au CSE, pas de remboursement
+    DOM.summaryTTCLabel.textContent = 'Total TTC à rembourser par le CSE :';
+    DOM.summaryDueToCSE.classList.remove('hidden');
+    DOM.summaryDueAmount.textContent = formatCurrency(totalDuAuCSE) + ' €';
+    DOM.summaryNetRow.classList.remove('hidden');
+    DOM.summaryNetRow.className = 'summary-row net-total net-negative';
+    DOM.summaryNetAmount.textContent = '- ' + formatCurrency(totalDuAuCSE) + ' € (à rembourser au CSE)';
+    DOM.totalTTC.value = '- ' + formatCurrency(totalDuAuCSE) + ' € (dû au CSE)';
+  } else {
+    // Pas de montant dû au CSE → affichage classique
+    DOM.summaryTTCLabel.textContent = 'Total TTC à rembourser par le CSE :';
+    DOM.summaryDueToCSE.classList.add('hidden');
+    DOM.summaryDueAmount.textContent = '0,00 €';
+    DOM.summaryNetRow.classList.add('hidden');
+    DOM.totalTTC.value = formatCurrency(totalTTC) + ' €';
+  }
 
   // Mettre à jour les rappels de justificatifs
   updateJustificatifsReminder();
@@ -886,13 +961,17 @@ function renderSavedRequestsList() {
 
 function calculateRequestTotal(expenses) {
   let total = 0;
+  let totalDuAuCSE = 0;
   expenses.forEach(expense => {
+    if (expense.montantDuAuCSE > 0) {
+      totalDuAuCSE += expense.montantDuAuCSE;
+    }
     if (expense.paiement !== 'carte_cse') {
       const montant = expense.montantRembourse !== undefined ? expense.montantRembourse : expense.montantTTC;
       total += montant;
     }
   });
-  return total;
+  return Math.round((total - totalDuAuCSE) * 100) / 100;
 }
 
 function updateEditingIndicator() {
@@ -1047,6 +1126,27 @@ function generatePDF() {
 
       const tableData = standardExpenses.map(expense => {
         const montantRembourse = expense.montantRembourse !== undefined ? expense.montantRembourse : expense.montantTTC;
+        const isCse = expense.paiement === 'carte_cse';
+
+        // Colonne Remboursement :
+        // - Carte CSE avec dépassement repas du soir → montant négatif (dû au CSE)
+        // - Carte CSE sans dépassement → "-"
+        // - Autre moyen de paiement avec plafond → montant plafonné
+        // - Autre moyen de paiement sans plafond → montant TTC
+        let rembCell;
+        if (isCse && expense.montantDuAuCSE > 0) {
+          rembCell = '-' + formatCurrency(expense.montantDuAuCSE) + ' €**';
+        } else if (isCse) {
+          rembCell = '-';
+        } else if (expense.plafonne) {
+          rembCell = formatCurrency(montantRembourse) + ' €*';
+        } else {
+          rembCell = formatCurrency(montantRembourse) + ' €';
+        }
+
+        // Colonne TVA : afficher le taux (ex: "20%") au lieu du montant
+        const tauxTVACell = (expense.tauxTVA || 20) + '%';
+
         return [
           expense.typeLabel,
           formatDate(expense.date),
@@ -1055,9 +1155,9 @@ function generatePDF() {
           expense.reference || '-',
           getPaiementLabel(expense.paiement),
           formatCurrency(expense.montantHT) + ' €',
-          formatCurrency(expense.tva) + ' €',
+          tauxTVACell,
           formatCurrency(expense.montantTTC) + ' €',
-          expense.plafonne ? formatCurrency(montantRembourse) + ' €*' : formatCurrency(montantRembourse) + ' €'
+          rembCell
         ];
       });
 
@@ -1084,13 +1184,22 @@ function generatePDF() {
 
       // Note pour les repas plafonnés
       const hasPlafonne = standardExpenses.some(e => e.plafonne);
-      if (hasPlafonne) {
+      const hasDuAuCSE = standardExpenses.some(e => e.montantDuAuCSE > 0);
+      if (hasPlafonne || hasDuAuCSE) {
         y = doc.lastAutoTable.finalY + 3;
         doc.setFontSize(7);
         doc.setFont('helvetica', 'italic');
         doc.setTextColor(100, 100, 100);
-        doc.text('* Repas plafonné à 25€ - le surplus reste à la charge de l\'élu', 20, y);
-        y += 7;
+        if (hasPlafonne) {
+          doc.text('* Repas du soir plafonné à 25€ TTC - le surplus reste à la charge de l\'élu', 20, y);
+          y += 4;
+        }
+        if (hasDuAuCSE) {
+          doc.setTextColor(220, 38, 38);
+          doc.text('** Repas du soir payé par carte CSE dépassant 25€ - le surplus est déduit du remboursement', 20, y);
+          y += 4;
+        }
+        y += 3;
       } else {
         y = doc.lastAutoTable.finalY + 10;
       }
@@ -1148,8 +1257,14 @@ function generatePDF() {
     let totalTVA = 0;
     let totalTTC = 0;
     let totalCSE = 0;
+    let totalDuAuCSE = 0;
 
     state.expenses.forEach(expense => {
+      // Cumuler les montants dus au CSE
+      if (expense.montantDuAuCSE > 0) {
+        totalDuAuCSE += expense.montantDuAuCSE;
+      }
+
       if (expense.paiement === 'carte_cse') {
         totalCSE += expense.montantTTC;
       } else {
@@ -1170,7 +1285,10 @@ function generatePDF() {
     });
 
     // Box récapitulatif avec couleur CSE
-    const boxHeight = totalCSE > 0 ? 42 : 35;
+    let boxHeight = 35;
+    if (totalCSE > 0) boxHeight += 7;
+    if (totalDuAuCSE > 0 && totalTTC > 0) boxHeight += 20; // Déduction + net
+    else if (totalDuAuCSE > 0) boxHeight += 10;
     doc.setFillColor(255, 248, 224);
     doc.setDrawColor(cseColor[0], cseColor[1], cseColor[2]);
     doc.setLineWidth(1);
@@ -1186,16 +1304,50 @@ function generatePDF() {
     doc.text(`Total HT : ${formatCurrency(totalHT)} €`, 25, y + 16);
     doc.text(`Total TVA : ${formatCurrency(totalTVA)} €`, 85, y + 16);
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(cseColor[0], cseColor[1], cseColor[2]);
-    doc.text(`TOTAL À REMBOURSER PAR LE CSE : ${formatCurrency(totalTTC)} €`, 25, y + 26);
+    let yOffset = 26;
+
+    if (totalDuAuCSE > 0 && totalTTC > 0) {
+      // Afficher le détail : sous-total, déduction, net
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Sous-total TTC des frais à rembourser : ${formatCurrency(totalTTC)} €`, 25, y + yOffset);
+
+      yOffset += 7;
+      doc.setTextColor(220, 38, 38);
+      doc.text(`Déduction dépassement repas du soir (carte CSE) : - ${formatCurrency(totalDuAuCSE)} €`, 25, y + yOffset);
+
+      yOffset += 9;
+      const montantNet = Math.round((totalTTC - totalDuAuCSE) * 100) / 100;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      if (montantNet >= 0) {
+        doc.setTextColor(cseColor[0], cseColor[1], cseColor[2]);
+        doc.text(`MONTANT NET À PERCEVOIR PAR L'ÉLU : ${formatCurrency(montantNet)} €`, 25, y + yOffset);
+      } else {
+        doc.setTextColor(220, 38, 38);
+        doc.text(`MONTANT NET DÛ AU CSE PAR L'ÉLU : ${formatCurrency(Math.abs(montantNet))} €`, 25, y + yOffset);
+      }
+    } else if (totalDuAuCSE > 0 && totalTTC === 0) {
+      // Seulement un montant dû au CSE
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38);
+      doc.text(`MONTANT DÛ AU CSE PAR L'ÉLU : ${formatCurrency(totalDuAuCSE)} €`, 25, y + yOffset);
+    } else {
+      // Cas normal sans déduction
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(cseColor[0], cseColor[1], cseColor[2]);
+      doc.text(`TOTAL À REMBOURSER PAR LE CSE : ${formatCurrency(totalTTC)} €`, 25, y + yOffset);
+    }
 
     if (totalCSE > 0) {
+      yOffset += 7;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(100, 100, 100);
-      doc.text(`(Non inclus : ${formatCurrency(totalCSE)} € payés par carte CSE)`, 25, y + 34);
+      doc.text(`(Non inclus : ${formatCurrency(totalCSE)} € payés par carte CSE)`, 25, y + yOffset);
     }
 
     y += boxHeight + 10;

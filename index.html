@@ -85,7 +85,10 @@
             <option value="hotel">🏨 Hôtel</option>
             <option value="parking">🅿️ Parking</option>
             <option value="repas">🍽️ Repas</option>
+            <option value="repasSoir">🌙 Repas du soir (déplacement)</option>
             <option value="transport">🚆 Transport</option>
+            <option value="evenement">🎉 Événement</option>
+            <option value="fonctionnement">🏢 Fonctionnement CSE</option>
             <option value="divers">📦 Divers</option>
             <option value="fraisKm">🚗 Frais kilométriques</option>
           </select>
@@ -105,11 +108,20 @@
             <span>Total TVA :</span>
             <span id="summaryTVA">0,00 €</span>
           </div>
-          <div class="summary-row total">
-            <span>Total TTC à rembourser par le CSE :</span>
+          <div id="summaryTTCRow" class="summary-row total">
+            <span id="summaryTTCLabel">Total TTC à rembourser par le CSE :</span>
             <span id="summaryTTC">0,00 €</span>
           </div>
+          <div id="summaryDueToCSE" class="summary-row due-cse hidden">
+            <span>⚠️ Dépassement repas du soir (carte CSE) :</span>
+            <span id="summaryDueAmount">0,00 €</span>
+          </div>
+          <div id="summaryNetRow" class="summary-row net-total hidden">
+            <span>💰 Montant net à percevoir par l'élu :</span>
+            <span id="summaryNetAmount">0,00 €</span>
+          </div>
           <p class="note">* Les paiements par carte CSE ne sont pas comptabilisés dans le total</p>
+          <p class="note">* Les repas du soir lors de déplacements sont plafonnés à 25€ TTC. Les repas du midi sont pris à 100% par le CSE.</p>
         </div>
 
         <!-- Messages de rappel pour les justificatifs -->
@@ -188,8 +200,8 @@
             <label for="expRaison">Raison du frais *</label>
             <input type="text" id="expRaison" required placeholder="Ex: Déjeuner client, Nuit d'hôtel mission Paris...">
           </div>
-          <div class="form-group" id="groupRepasInfo" style="display:none;">
-            <p class="info-repas">⚠️ Les repas sont remboursés à hauteur de 25€ maximum. Tout montant supérieur reste à la charge de l'élu.</p>
+          <div class="form-group full-width" id="groupRepasInfo" style="display:none;">
+            <p class="info-repas" id="repasInfoText"></p>
           </div>
           <div class="form-group">
             <label for="expReference">Référence du justificatif *</label>
@@ -205,6 +217,7 @@
               <option value="">-- Sélectionner --</option>
               <option value="carte_perso">Carte personnelle</option>
               <option value="carte_cse">Carte CSE (non remboursable)</option>
+              <option value="virement">Virement</option>
               <option value="espece">Espèces</option>
               <option value="autre">Autre</option>
             </select>

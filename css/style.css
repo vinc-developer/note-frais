@@ -593,6 +593,38 @@ body {
   border-top: 2px solid var(--primary-color);
 }
 
+.summary-row.due-cse {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--danger-color);
+  margin-top: 6px;
+  border-top: 2px dashed var(--danger-color);
+  background: rgba(239, 68, 68, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+}
+
+.summary-row.net-total {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 8px;
+  border-top: 3px solid var(--success-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+}
+
+.summary-row.net-positive {
+  color: var(--success-color);
+  background: rgba(16, 185, 129, 0.08);
+  border-top-color: var(--success-color);
+}
+
+.summary-row.net-negative {
+  color: var(--danger-color);
+  background: rgba(239, 68, 68, 0.08);
+  border-top-color: var(--danger-color);
+}
+
 .expenses-summary .note {
   margin-top: 12px;
   font-size: 0.75rem;
@@ -781,6 +813,11 @@ footer {
   color: #065f46;
 }
 
+.badge-virement {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
 .badge-autre {
   background-color: #e5e7eb;
   color: #374151;
@@ -811,6 +848,11 @@ footer {
 
 .toast.error {
   background-color: var(--danger-color);
+}
+
+.toast.warning {
+  background-color: var(--warning-color);
+  color: #1e293b;
 }
 
 @keyframes toastSlideUp {
