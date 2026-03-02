@@ -300,7 +300,7 @@ function openExpenseModal(type, editId = null) {
     const expense = state.expenses.find(e => e.id === editId);
     if (expense) {
       DOM.expMontantHT.value = expense.montantHT;
-      DOM.expTauxTVA.value = expense.tauxTVA || '20';
+      DOM.expTauxTVA.value = (expense.tauxTVA !== undefined && expense.tauxTVA !== null) ? String(expense.tauxTVA) : '20';
       DOM.expTVA.value = expense.tva;
       DOM.expMontantTTC.value = expense.montantTTC;
       DOM.expDate.value = expense.date;
@@ -364,7 +364,7 @@ function handleSubmitExpense(e) {
   const editId = DOM.expEditId.value ? parseInt(DOM.expEditId.value) : null;
 
   let montantHT = parseFloat(DOM.expMontantHT.value) || 0;
-  let tauxTVA = parseFloat(DOM.expTauxTVA.value) || 20;
+  let tauxTVA = parseFloat(DOM.expTauxTVA.value) || 0;
   let tva = parseFloat(DOM.expTVA.value) || 0;
   let montantTTC = parseFloat(DOM.expMontantTTC.value) || 0;
   let montantRembourse = montantTTC;
@@ -509,7 +509,7 @@ function deleteExpense(id) {
 
 function calculateTVAandTTC() {
   const ht = parseFloat(DOM.expMontantHT.value) || 0;
-  const tauxTVA = parseFloat(DOM.expTauxTVA.value) || 20;
+  const tauxTVA = parseFloat(DOM.expTauxTVA.value) || 0;
   const tva = ht * (tauxTVA / 100);
   DOM.expTVA.value = tva.toFixed(2);
   DOM.expMontantTTC.value = (ht + tva).toFixed(2);
@@ -1145,7 +1145,7 @@ function generatePDF() {
         }
 
         // Colonne TVA : afficher le taux (ex: "20%") au lieu du montant
-        const tauxTVACell = (expense.tauxTVA || 20) + '%';
+        const tauxTVACell = (expense.tauxTVA !== undefined && expense.tauxTVA !== null ? expense.tauxTVA : 20) + '%';
 
         return [
           expense.typeLabel,
