@@ -204,6 +204,20 @@ function attachEventListeners() {
   DOM.expMontantHT.addEventListener('input', calculateTVAandTTC);
   DOM.expTauxTVA.addEventListener('change', calculateTVAandTTC);
 
+  // Modification manuelle TVA → recalcule TTC
+  DOM.expTVA.addEventListener('input', function() {
+    const ht = parseFloat(DOM.expMontantHT.value) || 0;
+    const tva = parseFloat(DOM.expTVA.value) || 0;
+    DOM.expMontantTTC.value = (Math.round((ht + tva) * 100) / 100).toFixed(2);
+  });
+
+  // Modification manuelle TTC → recalcule TVA
+  DOM.expMontantTTC.addEventListener('input', function() {
+    const ht = parseFloat(DOM.expMontantHT.value) || 0;
+    const ttc = parseFloat(DOM.expMontantTTC.value) || 0;
+    DOM.expTVA.value = (Math.round((ttc - ht) * 100) / 100).toFixed(2);
+  });
+
   // Modal frais kilométriques
   DOM.formFraisKm.addEventListener('submit', handleSubmitFraisKm);
   DOM.btnCancelKm.addEventListener('click', () => closeModal(DOM.modalFraisKm));
